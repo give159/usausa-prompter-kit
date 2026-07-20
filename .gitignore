@@ -1,0 +1,19 @@
+# 依存パッケージ
+node_modules/
+package-lock.json
+
+# テスト実行時に配置する本体（tool/ からコピーする運用のため）
+tests/tool.html
+
+# OS が作るファイル
+.DS_Store
+Thumbs.db
+
+# エディタ
+.vscode/
+.idea/
+*.swp
+
+# 一時ファイル
+*.log
+*.tmp
