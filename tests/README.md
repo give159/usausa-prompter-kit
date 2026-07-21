@@ -1,12 +1,12 @@
-# うさうさプロンプター テスト一式（v1.7B PRO対応）
+# うさうさプロンプター テスト一式（v1.7C PRO対応）
 
-単一ファイルHTMLツールの動的テスト2段構え（ユニット15本＋jsdomスモーク5本）。
-全20本PASS済み（Node.js v22 / jsdom 29 / 2026-07-10検証）。
+単一ファイルHTMLツールの動的テスト2段構え（ユニット15本＋jsdomスモーク6本）。
+全21本PASS済み（Node.js v22 / jsdom 29 / 2026-07-21検証）。
 
 ## セットアップ（初回のみ）
 
 1. このフォルダに、テスト対象のHTMLを `tool.html` という名前でコピーする
-   （usausa-prompter-v1_7B-PRO.html を改名コピー）
+   （usausa-prompter-v1_7C-PRO.html を改名コピー）
 2. ターミナルで:
 
     npm install
@@ -22,7 +22,7 @@
 |---|---|
 | extract.js | HTMLから関数を名前で切り出すヘルパー（波かっこ深さカウント＋vmサンドボックス） |
 | test/unit.test.js | 純粋ロジックのユニットテスト15本（clamp／hexLum／contrastRatio等の境界値） |
-| test/smoke.test.js | jsdomでHTMLを丸ごと起動するスモークテスト5本（起動・バージョン・通常版AI無効・保存） |
+| test/smoke.test.js | jsdomでHTMLを丸ごと起動するスモークテスト6本（起動・バージョン・通常版AI無効表示・**通常版でfetch自体が呼ばれないこと**・保存） |
 
 ## 結果の見方
 
@@ -32,4 +32,7 @@
 ## 注意（ハマりどころ）
 
 - テストが終わらない → smoke側の `after(() => dom.window.close())` を消さないこと
-- 別バージョンのHTMLを検査する場合、バージョン表記テスト（1.7B PRO）は書き換えが必要
+- 別バージョンのHTMLを検査する場合、バージョン表記テスト（1.7C PRO）は書き換えが必要
+
+詳しい解説は別冊「動的テスト入門（Windows + VS Code）」参照。
+面白きこともなき世を面白く。 ― 高杉晋作
