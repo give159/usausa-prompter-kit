@@ -10,7 +10,7 @@
 
 ## 30秒で試す
 
-1. **[usausa-prompter-v1_7B-PRO.html](https://github.com/give159/usausa-prompter-kit/blob/main/tool/usausa-prompter-v1_7C-PRO.html)** を開く
+1. **[usausa-prompter-v1_7C-PRO.html](https://github.com/give159/usausa-prompter-kit/blob/main/tool/usausa-prompter-v1_7C-PRO.html)** を開く
 2. 右上の **「Download raw file」** をクリック
 3. 保存したファイルを**ダブルクリック**（ブラウザが開きます）
 4. 原稿を貼り付けて「再生」
