@@ -60,7 +60,7 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
 ---
 
-## 例2：画面から部品を取ってくる `$`（824行目）
+## 例2：画面から部品を取ってくる `$`（833行目）
 
 ```javascript
 const $=id=>document.getElementById(id);
@@ -80,7 +80,7 @@ const $=id=>document.getElementById(id);
 
 ---
 
-## 例3：危ない文字を無害にする `esc`（883行目）
+## 例3：危ない文字を無害にする `esc`（892行目）
 
 ```javascript
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -140,7 +140,7 @@ function contrastLabel(ratio){
 
 ---
 
-## 例5：速度を設定する `setCpm`（1277〜1283行目）
+## 例5：速度を設定する `setCpm`（1286〜1292行目）
 
 実務らしい関数です。設定を変え、画面を更新し、保存まで行います。
 
@@ -181,7 +181,7 @@ function setCpm(v,silent){
 
 ---
 
-## 例6：動きの心臓 `loop`（1154〜1161行目）
+## 例6：動きの心臓 `loop`（1163〜1170行目）
 
 原稿を流し続ける、このツールで最も大事な関数です。
 
@@ -224,7 +224,7 @@ function loop(t){
 
 ---
 
-## 例7：保存のしくみ `lsSet` と `saveNow`（1323〜1331行目）
+## 例7：保存のしくみ `lsSet` と `saveSoon`（1323〜1331行目）
 
 ```javascript
 function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){storageOK=false;return false;}}
