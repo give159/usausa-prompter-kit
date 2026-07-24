@@ -1,36 +1,20 @@
-// extract.js ― 単一ファイルHTMLから「関数のソースコード」を名前で切り出す
-// 使い方: const { loadFunctions } = require("./extract");
-//         const fns = loadFunctions("tool.html", ["clamp", "hexLum"]);
-"use strict";
-const fs = require("node:fs");
-const vm = require("node:vm");
+// extract.js — HTMLから純粋ロジック関数を切り出してNodeで使えるようにする
+const fs = require("fs");
+const src = fs.readFileSync(__dirname + "/usausa-prompter-v1_7C-PRO.html", "utf8");
 
-// HTML本文から function 名前(...) { ... } を波かっこの対応を数えて切り出す
-function sliceFunction(source, name) {
-  const re = new RegExp(String.raw`(async\s+)?function\s+${name}\s*\(`);
-  const m = re.exec(source);
-  if (!m) throw new Error(`関数 ${name} が見つかりません`);
-  const start = m.index;
-  let i = source.indexOf("{", start);
-  let depth = 0;
-  for (; i < source.length; i++) {
-    const ch = source[i];
-    if (ch === "{") depth++;
-    else if (ch === "}") { depth--; if (depth === 0) return source.slice(start, i + 1); }
+function pick(name) {
+  // "function NAME(" から、対応する閉じブレースまでを素朴に切り出す
+  const start = src.indexOf("function " + name + "(");
+  if (start < 0) throw new Error("not found: " + name);
+  let depth = 0, i = src.indexOf("{", start);
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}") { depth--; if (depth === 0) return src.slice(start, j + 1); }
   }
-  throw new Error(`関数 ${name} の閉じかっこが見つかりません`);
+  throw new Error("unbalanced: " + name);
 }
 
-// 指定した関数たちを1つのサンドボックス(vm)で評価して返す
-function loadFunctions(htmlPath, names, stubs = {}) {
-  const html = fs.readFileSync(htmlPath, "utf8");
-  const code = names.map((n) => sliceFunction(html, n)).join("\n");
-  const sandbox = { console, ...stubs };
-  vm.createContext(sandbox);
-  vm.runInContext(code + "\n;({" + names.join(",") + "})", sandbox);
-  const result = {};
-  for (const n of names) result[n] = vm.runInContext(n, sandbox);
-  return result;
-}
-
-module.exports = { loadFunctions, sliceFunction };
+const code = ["clamp", "clampRatio", "hexLum", "contrastRatio", "contrastLabel"].map(pick).join("\n");
+const mod = {};
+new Function("exportsObj", code + "\nexportsObj.clamp=clamp;exportsObj.clampRatio=clampRatio;exportsObj.hexLum=hexLum;exportsObj.contrastRatio=contrastRatio;exportsObj.contrastLabel=contrastLabel;")(mod);
+module.exports = mod;
