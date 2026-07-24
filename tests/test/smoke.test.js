@@ -1,64 +1,75 @@
-// test/smoke.test.js ― jsdomで「実際にHTMLを起動して」確かめるスモークテスト
-// 実行: node --test
-"use strict";
-const { test, after } = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
+// smoke.test.js — jsdomでHTMLを丸ごと起動するスモークテスト（6本）
+// 通常版判定にするため url は http://localhost（localStorageも使える）
+const test = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
 const { JSDOM } = require("jsdom");
 
-// ページを1回だけ起動して全テストで使い回す
-function boot() {
-  const html = fs.readFileSync("tool.html", "utf8");
-  const dom = new JSDOM(html, {
-    runScripts: "dangerously",      // <script>を実行する（＝動的テストの心臓部）
-    pretendToBeVisual: true,        // requestAnimationFrame 等を有効化
-    url: "http://localhost/tool.html",  // 通常版扱いのまま localStorage も使えるURL
-                                        // (file:// だとjsdomではlocalStorageが使えない)
+const html = fs.readFileSync(path.join(__dirname, "..", "usausa-prompter-v1_7C-PRO.html"), "utf8");
+
+let dom, win, doc, fetchCalls;
+
+test.before(async () => {
+  fetchCalls = [];
+  dom = new JSDOM(html, {
+    url: "http://localhost/",           // → isArtifactEnv() は false（通常版）
+    runScripts: "dangerously",
+    pretendToBeVisual: true,            // requestAnimationFrame を有効化
+    beforeParse(window) {
+      // 回帰テスト用: window.fetch を監視スパイに差し替え（スクリプト実行前に仕込む）
+      window.fetch = (...args) => { fetchCalls.push(args[0]); return Promise.reject(new Error("spy")); };
+      // jsdom未実装APIの穴埋め（起動を止めないため）
+      window.AudioContext = window.AudioContext || function(){ return { createOscillator(){return{connect(){},start(){},stop(){},frequency:{value:0},type:""};}, createGain(){return{connect(){},gain:{value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}}};}, destination:{}, currentTime:0 }; };
+      window.matchMedia = window.matchMedia || (() => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} }));
+    },
   });
-  // jsdomに無いブラウザAPIは、最低限のスタブ（代役）を置く
-  const w = dom.window;
-  if (!w.matchMedia) w.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
-  if (!w.AudioContext) w.AudioContext = class { close() {} };
-  return dom;
-}
-const dom = boot();
-const doc = dom.window.document;
-
-// 後始末: ツール内の時計(setInterval)等が生きているとテストが終わらないため、
-// 全テスト完了後にウィンドウを閉じてタイマーを止める
-after(() => dom.window.close());
-
-test("起動: <script>がエラーなく実行され、原稿入力欄(#ta)が存在する", () => {
-  assert.ok(doc.getElementById("ta"), "#ta が見つからない＝初期化に失敗している");
+  win = dom.window; doc = win.document;
+  await new Promise(r => setTimeout(r, 150)); // boot() 完了待ち
 });
 
-test("バージョン: 画面にJSが描画した v1.7B PRO の表記が出ている", () => {
-  // cover-ver はJSが動いて初めて生成される → 「スクリプトが最後まで走った」証拠
-  const ver = doc.querySelector(".cover-ver");
-  assert.ok(ver, ".cover-ver が無い（JSが途中で落ちた可能性）");
-  assert.match(ver.textContent, /1\.7B PRO/);
+test.after(() => { dom.window.close(); }); // ← これを忘れるとテストが終わらない
+
+test("S01 起動確認: boot()が走り、原稿の舞台(stage)とタイトルが存在する", () => {
+  assert.ok(doc.getElementById("stage"), "#stage が無い");
+  assert.ok(doc.title.includes("うさうさプロンプター"), "タイトル不一致: " + doc.title);
 });
 
-test("主要ボタン: 再生・しおり・続きから・実績・全画面が揃っている", () => {
-  for (const id of ["btnBookmark", "btnResume", "btnLog", "btnFull"]) {
-    assert.ok(doc.getElementById(id), `#${id} が見つからない`);
-  }
+test("S02 バージョン表示: 表紙に v1.7C PRO と 2026-07-21 が刻印されている", () => {
+  const cover = doc.querySelector(".cover-ver");
+  assert.ok(cover, ".cover-ver が無い（表紙未描画）");
+  assert.ok(cover.textContent.includes("1.7C PRO"), cover.textContent);
+  assert.ok(cover.textContent.includes("2026-07-21"), cover.textContent);
 });
 
-test("通常版(ローカル)の安全確認: 相談ボタンを押すとAI案内が『使えません』側になる", () => {
-  doc.getElementById("btnAI").click();  // 実際のボタンをクリック（ユーザー操作を再現）
-  const bar = doc.getElementById("aiBar");
-  assert.ok(bar.className.includes("warn"), "通常版なのに ok(有効)表示になっている");
-  assert.match(doc.getElementById("aiBarText").textContent, /使えません/);
+test("S03 通常版のAI案内: AI相談を開くと「AI相談は使えません」バーが出る", () => {
+  doc.getElementById("btnAI").click();            // openAI() → updateAiBar()
+  const bar = doc.getElementById("aiBarText");
+  assert.ok(bar.textContent.includes("AI相談は使えません"), bar.textContent);
+  doc.getElementById("aiClose").click();          // モーダルを閉じる（開いたままだと以降のショートカットが正しく無効化される）
 });
 
-test("保存: 起動後の自動保存で usausa_prompter_v2 に書き込まれる", async () => {
-  // boot()内の saveSoon() は600ms後に保存する設計 → 少し待ってから確認する
-  await new Promise((r) => setTimeout(r, 900));
-  const raw = dom.window.localStorage.getItem("usausa_prompter_v2");
-  assert.ok(raw, "保存データが localStorage に無い");
-  const data = JSON.parse(raw);
-  assert.equal(data.v, 12);      // スキーマバージョン
-  assert.equal(data.cpm, 300);   // 既定の読み上げ速度
-  assert.equal(data.size, 48);   // 既定の文字サイズ
+test("S04 localStorage保存: 操作後、キー usausa_prompter_v2 に v:12 で保存される", async () => {
+  // ↑キーで速度変更 → saveSoon(600msデバウンス) → 保存
+  win.dispatchEvent(new win.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+  await new Promise(r => setTimeout(r, 800));
+  const raw = win.localStorage.getItem("usausa_prompter_v2");
+  assert.ok(raw, "localStorage に保存されていない");
+  assert.equal(JSON.parse(raw).v, 12, "スキーマバージョンが v:12 でない");
+});
+
+test("S05 既定値: 保存データの cpm=310(300+10) / size=48 が仕様どおり", () => {
+  const d = JSON.parse(win.localStorage.getItem("usausa_prompter_v2"));
+  assert.equal(d.cpm, 310, "cpm既定300から↑1回で310のはず: " + d.cpm); // S04で+10済み
+  assert.equal(d.size, 48, "size既定48のはず: " + d.size);
+});
+
+test("S06 回帰: 通常版でAI送信ボタンを押しても fetch は1度も呼ばれない", async () => {
+  doc.getElementById("aiInput").value = "テスト送信です";
+  doc.getElementById("aiSend").click();           // sendAI → callAI(冒頭ガードでNOT_ARTIFACT)
+  await new Promise(r => setTimeout(r, 200));
+  assert.equal(fetchCalls.length, 0, "fetchが呼ばれた: " + JSON.stringify(fetchCalls));
+  // ガード発動の証拠: チャット欄に通常版の案内が返る
+  assert.ok(doc.getElementById("aiLog").textContent.includes("アーティファクト上でのみ動作"),
+    doc.getElementById("aiLog").textContent.slice(0, 200));
 });
